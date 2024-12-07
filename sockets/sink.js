@@ -12,8 +12,10 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient(); // Initialize Prisma client
 
 // Configuration
-const url = "https://transport-socket.dev.ks.samagra.io"; // Replace with your Socket.IO server URL
+// const url = "https://transport-socket.dev.ks.samagra.io"; // Replace with your Socket.IO server URL
+const url = "http://4.240.110.59:3005"
 const messagesPerSecond = 300; // Number of messages to send per second
+let cnt = 0;
 
 const questionMap = [
   "_about_mahakumbh",

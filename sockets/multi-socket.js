@@ -4,10 +4,17 @@
 const { randomUUID } = require("crypto");
 const io = require("socket.io-client");
 const colors = require("colors");
+const { Mutex } = require("async-mutex");
+
+// Add mutex instance at the top
+const mutex = new Mutex();
 
 // Configuration
-const url = "https://transport-socket.dev.ks.samagra.io";
+// const url = "https://transport-socket.dev.ks.samagra.io";
+const url = "http://4.240.110.59:3005";
 const messagesPerSecond = 5;
+
+let cnt = 0;
 
 const questionMap = [
   "_about_mahakumbh",
@@ -22,13 +29,31 @@ function createSocketConnection() {
       transports: ["websocket"],
     });
 
-    socket.on("connect", () => {
+    socket.on("connect", async () => {
       console.log(colors.green("✅ Connected to Socket.IO server."));
+      // Acquire mutex lock before updating cnt
+      const release = await mutex.acquire();
+      try {
+        cnt++;
+        console.log(colors.magenta(`Number of Connections: ${cnt}`));
+      } finally {
+        release();
+      }
       resolve(socket);
     });
 
-    socket.on("connect_error", (error) => {
+    socket.on("connect_error", async (error) => {
+      console.log(error);
       console.error(colors.red(`❌ Connection error: ${error.message}`));
+      // Acquire mutex lock before updating cnt
+      const release = await mutex.acquire();
+      try {
+        cnt--;
+        console.log(colors.magenta(`Number of Connections: ${cnt}`));
+      } finally {
+        release();
+      }
+      process.exit(0); // Changed exit(0) to process.exit(0)
       reject(error);
     });
   });
@@ -54,12 +79,22 @@ function handleBotResponse(socket, response) {
 
   if (response.testSequenceId == 4) {
     console.log(
-      chalk.green(
+      colors.cyan(
         `📥 Received UNGUIDED response with testSequenceId: ${response.testSequenceId} and payload: ${response.payload.text}`
       )
     );
     // Close the current connection
     socket.disconnect();
+    // Wrap counter decrement in mutex
+    (async () => {
+      const release = await mutex.acquire();
+      try {
+        cnt--;
+        console.log(colors.magenta(`Number of Connections: ${cnt}`));
+      } finally {
+        release();
+      }
+    })();
     console.log(colors.red("❌ Connection closed after handling response."));
   }
 
